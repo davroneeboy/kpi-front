@@ -1,0 +1,21 @@
+---
+description: Стек TypeScript, Next.js (App Router), React — общие соглашения проекта
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Next.js + React + TypeScript
+
+- **App Router**: страницы в `app/`, серверные компоненты по умолчанию; `"use client"` только при состоянии, эффектах, браузерных API или обработчиках событий.
+- **Типы**: явные пропсы компонентов (`type Props` / `interface`); избегать `any`; для данных с API — отдельные типы/DTO и сужение на границе (parse/validate).
+- **Данные**: бэкенд — **отдельный репозиторий на Django**; все персистентные операции через его HTTP API. Предпочитать `fetch` на сервере Next, кэширование через `cache`/`revalidate`/`fetch` options по задаче; не дублировать одну и ту же загрузку без причины.
+- **Импорты**: алиасы из `tsconfig` если настроены; группировать внешние → внутренние → относительные.
+- **Стили**: один подход на проект (CSS Modules / Tailwind / styled) — не смешивать без необходимости.
+
+```tsx
+// Предпочтительно: серверный компонент без лишнего client
+export default async function Page() {
+  const data = await loadData();
+  return <List items={data} />;
+}
+```

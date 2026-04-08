@@ -1,0 +1,19 @@
+---
+description: Паттерны React UI — формы, списки, состояние загрузки и ошибок
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# React UI
+
+- Дробить на маленькие компоненты; тяжёлую логику выносить в хуки (`useUserTestHistory` и т.п.).
+- **Состояние**: локальное — `useState`/`useReducer`; разделяемое по дереву — контекст с узким значением; серверное — React Query / SWR / Server Components по выбранному стеку.
+- **Формы**: контролируемые поля или библиотека форм одна на проект; валидация — схема (например Zod) на границе submit.
+- **Ошибки**: границы ошибок (`error.tsx` в App Router) + понятные сообщения пользователю; технические детали только в логах.
+
+```tsx
+// Скелетон и ошибка рядом с данными
+if (error) return <ErrorBanner message={error.message} />;
+if (!data) return <HistorySkeleton />;
+return <HistoryList items={data} />;
+```
