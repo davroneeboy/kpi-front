@@ -1,4 +1,5 @@
 import { apiUrl } from "@/lib/api/config";
+import { localizeApiMessage } from "@/lib/api/localize-api-message";
 import type { ApiErrorBody, TokenRefreshResponse } from "@/lib/api/types";
 import {
   clearClientAuth,
@@ -114,16 +115,20 @@ export async function readApiError(res: Response): Promise<string> {
   if (!text) return res.statusText || "Xatolik";
   try {
     const j = JSON.parse(text) as ApiErrorBody;
-    if (typeof j.detail === "string") return j.detail;
+    if (typeof j.detail === "string") {
+      return localizeApiMessage(j.detail);
+    }
     if (Array.isArray(j.non_field_errors) && j.non_field_errors[0]) {
-      return String(j.non_field_errors[0]);
+      return localizeApiMessage(String(j.non_field_errors[0]));
     }
     const firstKey = Object.keys(j).find(
       (k) => k !== "detail" && Array.isArray(j[k]),
     );
     if (firstKey) {
       const arr = j[firstKey] as unknown;
-      if (Array.isArray(arr) && arr[0]) return String(arr[0]);
+      if (Array.isArray(arr) && arr[0]) {
+        return localizeApiMessage(String(arr[0]));
+      }
     }
     return text;
   } catch {

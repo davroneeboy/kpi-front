@@ -137,6 +137,27 @@ export type ApiAttemptDetail = ApiAttempt & {
   next_question?: ApiTestQuestionDetail | null;
 };
 
+/** POST /api/attempts/<id>/session-events/ */
+export type AttemptSessionEventType =
+  | "page_hidden"
+  | "page_visible"
+  | "window_blur"
+  | "window_focus";
+
+export type AttemptSessionEventPayload = {
+  event_type: AttemptSessionEventType;
+  client_timestamp?: string | null;
+  leave_count?: number | null;
+  duration_away_ms?: number | null;
+  meta?: Record<string, unknown> | null;
+};
+
+export type AttemptSessionEventResponse = {
+  id: number;
+  event_type: AttemptSessionEventType;
+  created_at: string;
+};
+
 export type ApiErrorBody = {
   detail?: string;
   non_field_errors?: string[];

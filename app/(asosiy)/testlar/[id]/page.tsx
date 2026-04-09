@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  abandonAttempt,
   completeAttempt,
   fetchAttemptDetail,
   startAttempt,
   submitAnswer,
 } from "@/lib/api/attempt-flow";
 import { fetchTestDetail } from "@/lib/api/tests-crud";
+import { useAttemptSessionEvents } from "@/lib/hooks/useAttemptSessionEvents";
 import type { ApiAttemptDetail, ApiTestDetail, ApiTestQuestionDetail } from "@/lib/api/types";
 
 function isFinishedAttemptError(message: string): boolean {
@@ -54,6 +54,12 @@ export default function TestOtkazishPage() {
   const [questionsAnswered, setQuestionsAnswered] = useState<number | null>(null);
   const [yuborilmoqda, setYuborilmoqda] = useState<number | null>(null);
   const [yakunlanmoqda, setYakunlanmoqda] = useState(false);
+  const [chiqishModal, setChiqishModal] = useState(false);
+
+  useAttemptSessionEvents(attemptId, {
+    active:
+      Boolean(attemptId) && !timedOut && !yakunlanmoqda,
+  });
 
   const savollar = useMemo(() => {
     if (!test?.questions?.length) return [];
@@ -281,8 +287,12 @@ export default function TestOtkazishPage() {
     }
   }
 
-  async function yakunlash() {
-    if (!attemptId || !barchaJavoblangan || timedOut) return;
+  async function yakunlashHozirgiJavoblarBilan(
+    variant: "barcha" | "istalgan",
+  ) {
+    if (!attemptId || timedOut) return;
+    if (variant === "barcha" && !barchaJavoblangan) return;
+
     setYakunlanmoqda(true);
     setXato(null);
     try {
@@ -299,6 +309,7 @@ export default function TestOtkazishPage() {
         await submitAnswer(attemptId, p.questionId, p.optionId);
       }
       await completeAttempt(attemptId);
+      setChiqishModal(false);
       router.replace("/natijalar");
     } catch (e) {
       setXato(
@@ -309,17 +320,20 @@ export default function TestOtkazishPage() {
     }
   }
 
-  async function bekorQilish() {
+  async function yakunlash() {
+    await yakunlashHozirgiJavoblarBilan("barcha");
+  }
+
+  function chiqishniBoshlash() {
     if (!attemptId) {
       router.push("/testlar");
       return;
     }
-    try {
-      await abandonAttempt(attemptId);
-    } catch {
-      /* baribir chiqamiz */
+    if (timedOut) {
+      router.replace("/natijalar");
+      return;
     }
-    router.push("/testlar");
+    setChiqishModal(true);
   }
 
   void vaqtTik;
@@ -369,7 +383,7 @@ export default function TestOtkazishPage() {
           ) : null}
           <button
             type="button"
-            onClick={() => void bekorQilish()}
+            onClick={() => chiqishniBoshlash()}
             className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
           >
             Chiqish
@@ -517,6 +531,50 @@ export default function TestOtkazishPage() {
           </div>
         </>
       )}
+
+      {chiqishModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="chiqish-modal-title"
+          onClick={() => !yakunlanmoqda && setChiqishModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="chiqish-modal-title"
+              className="text-lg font-semibold text-zinc-900"
+            >
+              Testni yakunlash
+            </h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              Chiqish testni hozirgi holatda yakunlaydi: saqlangan javoblar
+              yuboriladi. Javob berilmagan savollar bo‘sh qolishi mumkin.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={yakunlanmoqda}
+                onClick={() => setChiqishModal(false)}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                disabled={yakunlanmoqda || timedOut}
+                onClick={() => void yakunlashHozirgiJavoblarBilan("istalgan")}
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {yakunlanmoqda ? "Yakunlanmoqda…" : "Ha, yakunlash"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
