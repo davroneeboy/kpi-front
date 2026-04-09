@@ -11,10 +11,17 @@ export type ApiUser = {
   is_staff?: boolean;
 };
 
+/** GET /api/me/ — `departments` ro'yxati */
+export type ApiMeDepartment = {
+  id: number;
+  name: string;
+};
+
 /** GET/PATCH /api/me/ — profil (maydonlar backendga moslashishi mumkin) */
 export type ApiMe = ApiUser & {
   middle_name?: string | null;
-  /** Matn yoki `{ name }` (Django FK serializatsiyasi) */
+  departments?: ApiMeDepartment[] | null;
+  /** Eski / yagona bo'lim maydonlari (fallback) */
   department?: string | { id?: number; name?: string } | null;
   department_name?: string | null;
 };

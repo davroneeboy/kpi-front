@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { CopyProtection } from "@/components/CopyProtection";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
   title: "KPI testlash tizimi | Agrosanoatni rivojlantirish agentligi",
   description:
     "Agrosanoatni rivojlantirish agentligi KPI testlash va natijalar tizimi",
+  icons: { icon: "/icon.png" },
 };
 
 export default function RootLayout({
@@ -29,6 +31,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900">
+        <CopyProtection />
         {children}
       </body>
     </html>

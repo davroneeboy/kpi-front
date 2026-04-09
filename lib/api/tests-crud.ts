@@ -1,11 +1,14 @@
 import { apiFetch, readApiError } from "@/lib/api/client";
+import { singleFlight } from "@/lib/api/request-single-flight";
 import type { ApiTestDetail, ApiTestUpsertPayload } from "@/lib/api/types";
 
 /** GET /api/tests/<id>/ — kartochka; staff uchun variantlarda `is_correct` */
-export async function fetchTestDetail(testId: number): Promise<ApiTestDetail> {
-  const res = await apiFetch(`/api/tests/${testId}/`, { method: "GET" });
-  if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiTestDetail>;
+export function fetchTestDetail(testId: number): Promise<ApiTestDetail> {
+  return singleFlight(`GET /api/tests/${testId}/`, async () => {
+    const res = await apiFetch(`/api/tests/${testId}/`, { method: "GET" });
+    if (!res.ok) throw new Error(await readApiError(res));
+    return res.json() as ApiTestDetail;
+  });
 }
 
 /** POST /api/tests/ — to'liq test + savollar + variantlar (`is_correct`) */

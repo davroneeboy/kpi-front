@@ -21,7 +21,7 @@ export function BrandLogo({
   return (
     <div className={`relative shrink-0 overflow-hidden rounded-full ${s.box} ${className}`}>
       <Image
-        src="/uzbekistan-emblem.png"
+        src="/icon.png"
         alt="Oʻzbekiston Respublikasi davlat gerbi"
         width={s.img}
         height={s.img}

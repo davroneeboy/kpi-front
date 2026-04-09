@@ -8,6 +8,31 @@ import {
 } from "@/lib/auth-storage";
 
 let refreshInFlight: Promise<boolean> | null = null;
+let getInFlight = new Map<string, Promise<Response>>();
+
+function buildGetRequestKey(url: string, headers: Headers): string {
+  return `GET ${url} :: auth=${headers.get("Authorization") ?? ""} :: accept=${headers.get("Accept") ?? ""}`;
+}
+
+async function fetchWithGetDedup(url: string, init: RequestInit): Promise<Response> {
+  const method = String(init.method ?? "GET").toUpperCase();
+  if (method !== "GET") {
+    return fetch(url, init);
+  }
+
+  const headers = new Headers(init.headers);
+  const key = buildGetRequestKey(url, headers);
+  const existing = getInFlight.get(key);
+  if (existing) {
+    return (await existing).clone();
+  }
+
+  const request = fetch(url, init).finally(() => {
+    getInFlight.delete(key);
+  });
+  getInFlight.set(key, request);
+  return (await request).clone();
+}
 
 async function postRefresh(): Promise<boolean> {
   const refresh = getRefreshToken();
@@ -64,7 +89,7 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  let res = await fetch(apiUrl(path), { ...rest, headers });
+  let res = await fetchWithGetDedup(apiUrl(path), { ...rest, headers });
 
   if (res.status === 401 && auth && !_skipRefresh) {
     const ok = await postRefresh();
@@ -72,7 +97,7 @@ export async function apiFetch(
       const retryHeaders = new Headers(headers);
       const newAccess = getAccessToken();
       if (newAccess) retryHeaders.set("Authorization", `Bearer ${newAccess}`);
-      res = await fetch(apiUrl(path), {
+      res = await fetchWithGetDedup(apiUrl(path), {
         ...rest,
         headers: retryHeaders,
       });

@@ -1,5 +1,9 @@
 import { apiFetch, readApiError } from "@/lib/api/client";
+import { singleFlight } from "@/lib/api/request-single-flight";
 import type { ApiMe } from "@/lib/api/types";
+
+const ME_CACHE_TTL_MS = 15_000;
+let meCache: { value: ApiMe; expiresAt: number } | null = null;
 
 /** FIO — `full_name` yoki familiya, ism, otasining ismi */
 export function formatMeFio(m: Pick<ApiMe, "full_name" | "first_name" | "last_name" | "middle_name" | "username">): string {
@@ -18,8 +22,17 @@ export function formatMeFio(m: Pick<ApiMe, "full_name" | "first_name" | "last_na
   return m.username;
 }
 
-/** Bo'lim nomi — turli backend maydonlari */
+/** Bo'lim(lar) matni — avvalo `departments[]`, keyin eski maydonlar */
 export function pickDepartmentLabel(m: ApiMe): string | null {
+  if (Array.isArray(m.departments) && m.departments.length > 0) {
+    const names = m.departments
+      .map((d) =>
+        d && typeof d.name === "string" ? d.name.trim() : "",
+      )
+      .filter(Boolean);
+    if (names.length > 0) return names.join(", ");
+  }
+
   const dn = m.department_name?.trim();
   if (dn) return dn;
   if (typeof m.department === "string" && m.department.trim()) {
@@ -36,10 +49,17 @@ export function pickDepartmentLabel(m: ApiMe): string | null {
   return null;
 }
 
-export async function fetchMe(): Promise<ApiMe> {
-  const res = await apiFetch("/api/me/", { method: "GET" });
-  if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiMe>;
+export function fetchMe(): Promise<ApiMe> {
+  if (meCache && meCache.expiresAt > Date.now()) {
+    return Promise.resolve(meCache.value);
+  }
+  return singleFlight("GET /api/me/", async () => {
+    const res = await apiFetch("/api/me/", { method: "GET" });
+    if (!res.ok) throw new Error(await readApiError(res));
+    const data = (await res.json()) as ApiMe;
+    meCache = { value: data, expiresAt: Date.now() + ME_CACHE_TTL_MS };
+    return data;
+  });
 }
 
 export async function updateMe(body: Partial<{
@@ -53,7 +73,9 @@ export async function updateMe(body: Partial<{
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiMe>;
+  const data = (await res.json()) as ApiMe;
+  meCache = { value: data, expiresAt: Date.now() + ME_CACHE_TTL_MS };
+  return data;
 }
 
 export async function changePassword(

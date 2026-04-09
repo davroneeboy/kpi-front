@@ -1,4 +1,5 @@
 import { apiFetch, readApiError } from "@/lib/api/client";
+import { singleFlight } from "@/lib/api/request-single-flight";
 import type { ApiAttemptDetail } from "@/lib/api/types";
 
 /** POST /api/tests/<id>/attempts/ */
@@ -13,10 +14,12 @@ export async function startAttempt(testId: number): Promise<ApiAttemptDetail> {
 }
 
 /** GET /api/attempts/<id>/ */
-export async function fetchAttemptDetail(id: number): Promise<ApiAttemptDetail> {
-  const res = await apiFetch(`/api/attempts/${id}/`, { method: "GET" });
-  if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiAttemptDetail>;
+export function fetchAttemptDetail(id: number): Promise<ApiAttemptDetail> {
+  return singleFlight(`GET /api/attempts/${id}/`, async () => {
+    const res = await apiFetch(`/api/attempts/${id}/`, { method: "GET" });
+    if (!res.ok) throw new Error(await readApiError(res));
+    return res.json() as ApiAttemptDetail;
+  });
 }
 
 /** POST /api/attempts/<id>/answer/ */

@@ -12,6 +12,39 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Matnni ajratib olish / nusxalash — Tailwind va boshqa qatlamlardan ustun */
+*,
+*::before,
+*::after {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+}
+
+/* Ajratilgan matn ko‘rinmasin (nusxa olish qiyinlashadi) */
+::selection {
+  background-color: transparent;
+  color: inherit;
+}
+
+input::selection,
+textarea::selection,
+[contenteditable="true"]::selection {
+  background-color: color-mix(in srgb, var(--foreground, #171717) 22%, transparent);
+  color: inherit;
+}
+
 body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

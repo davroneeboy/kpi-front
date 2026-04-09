@@ -1,7 +1,8 @@
 import { apiFetch, readApiError, unwrapList } from "@/lib/api/client";
+import { singleFlight } from "@/lib/api/request-single-flight";
 import type { ApiAttempt } from "@/lib/api/types";
 
-export async function fetchAttempts(
+export function fetchAttempts(
   params?: Record<string, string | undefined>,
 ): Promise<ApiAttempt[]> {
   const qs = new URLSearchParams();
@@ -13,8 +14,11 @@ export async function fetchAttempts(
   const path = qs.toString()
     ? `/api/attempts/?${qs.toString()}`
     : "/api/attempts/";
-  const res = await apiFetch(path, { method: "GET" });
-  if (!res.ok) throw new Error(await readApiError(res));
-  const data: unknown = await res.json();
-  return unwrapList<ApiAttempt>(data);
+  const key = `GET ${path}`;
+  return singleFlight(key, async () => {
+    const res = await apiFetch(path, { method: "GET" });
+    if (!res.ok) throw new Error(await readApiError(res));
+    const data: unknown = await res.json();
+    return unwrapList<ApiAttempt>(data);
+  });
 }

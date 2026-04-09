@@ -150,7 +150,7 @@ export default function TestOtkazishPage() {
           if (att?.id) {
             setAttemptId(att.id);
             applyAttemptSnapshot(att);
-            await syncAttemptMeta(att.id);
+            /* POST start javobi yetarli; GET qo'shimcha — interval + javobdan keyin */
           }
         }
       } catch (e) {
@@ -182,7 +182,6 @@ export default function TestOtkazishPage() {
       const att = await startAttempt(testId);
       setAttemptId(att.id);
       applyAttemptSnapshot(att);
-      await syncAttemptMeta(att.id);
     } catch (e) {
       const msg =
         e instanceof Error ? e.message : "Urinishni boshlab bo‘lmadi.";
@@ -197,10 +196,16 @@ export default function TestOtkazishPage() {
 
   useEffect(() => {
     if (!attemptId || timedOut) return;
-    const t = setInterval(() => {
-      void syncAttemptMeta(attemptId);
-    }, 15000);
-    return () => clearInterval(t);
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void syncAttemptMeta(attemptId);
+    };
+    run();
+    const t = setInterval(run, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [attemptId, timedOut, syncAttemptMeta]);
 
   function variantTanlash(savolId: number, variantId: number) {
