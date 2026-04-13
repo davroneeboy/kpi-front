@@ -7,7 +7,7 @@ export function fetchTestDetail(testId: number): Promise<ApiTestDetail> {
   return singleFlight(`GET /api/tests/${testId}/`, async () => {
     const res = await apiFetch(`/api/tests/${testId}/`, { method: "GET" });
     if (!res.ok) throw new Error(await readApiError(res));
-    return res.json() as ApiTestDetail;
+    return (await res.json()) as ApiTestDetail;
   });
 }
 
@@ -23,7 +23,7 @@ export async function createTest(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiTestDetail>;
+  return (await res.json()) as ApiTestDetail;
 }
 
 /** PUT yoki PATCH /api/tests/<id>/ */
@@ -40,7 +40,7 @@ export async function updateTest(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiTestDetail>;
+  return (await res.json()) as ApiTestDetail;
 }
 
 /** DELETE /api/tests/<id>/ */

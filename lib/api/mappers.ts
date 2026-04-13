@@ -27,14 +27,14 @@ export type UiAttemptStatus = "jarayonda" | "yakunlangan" | "bekor" | "noma'lum"
 
 export function mapAttemptStatus(status: string): UiAttemptStatus {
   const s = status.toLowerCase();
-  if (s.includes("progress") || s === "in_progress" || s === "started")
-    return "jarayonda";
-  if (s.includes("complete") || s === "completed" || s === "done")
-    return "yakunlangan";
   if (s.includes("timed_out") || s.includes("timeout") || s.includes("time_out"))
     return "bekor";
   if (s.includes("abandon") || s === "cancelled" || s === "canceled")
     return "bekor";
+  if (s.includes("complete") || s === "done")
+    return "yakunlangan";
+  if (s === "in_progress" || s === "started" || s.includes("progress"))
+    return "jarayonda";
   return "noma'lum";
 }
 

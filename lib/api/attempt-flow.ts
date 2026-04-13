@@ -13,7 +13,7 @@ export async function startAttempt(testId: number): Promise<ApiAttemptDetail> {
     body: JSON.stringify({}),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  return res.json() as Promise<ApiAttemptDetail>;
+  return (await res.json()) as ApiAttemptDetail;
 }
 
 /** GET /api/attempts/<id>/ */
@@ -21,7 +21,7 @@ export function fetchAttemptDetail(id: number): Promise<ApiAttemptDetail> {
   return singleFlight(`GET /api/attempts/${id}/`, async () => {
     const res = await apiFetch(`/api/attempts/${id}/`, { method: "GET" });
     if (!res.ok) throw new Error(await readApiError(res));
-    return res.json() as ApiAttemptDetail;
+    return (await res.json()) as ApiAttemptDetail;
   });
 }
 
@@ -30,7 +30,7 @@ export async function submitAnswer(
   attemptId: number,
   question_id: number,
   option_id: number,
-): Promise<ApiAttemptDetail | unknown> {
+): Promise<ApiAttemptDetail | undefined> {
   const res = await apiFetch(`/api/attempts/${attemptId}/answer/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -38,32 +38,26 @@ export async function submitAnswer(
   });
   if (!res.ok) throw new Error(await readApiError(res));
   const ct = res.headers.get("content-type");
-  if (ct?.includes("application/json")) return res.json();
+  if (ct?.includes("application/json")) return (await res.json()) as ApiAttemptDetail;
   return undefined;
 }
 
-export async function completeAttempt(attemptId: number): Promise<unknown> {
+export async function completeAttempt(attemptId: number): Promise<void> {
   const res = await apiFetch(`/api/attempts/${attemptId}/complete/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  const ct = res.headers.get("content-type");
-  if (ct?.includes("application/json")) return res.json();
-  return undefined;
 }
 
-export async function abandonAttempt(attemptId: number): Promise<unknown> {
+export async function abandonAttempt(attemptId: number): Promise<void> {
   const res = await apiFetch(`/api/attempts/${attemptId}/abandon/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  const ct = res.headers.get("content-type");
-  if (ct?.includes("application/json")) return res.json();
-  return undefined;
 }
 
 /** POST /api/attempts/<id>/session-events/ — telemetriya; xatoliklarni yutish */

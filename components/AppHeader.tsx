@@ -22,6 +22,21 @@ const nav = [
   { href: "/natijalar", label: "Natijalar" },
 ] as const;
 
+function UserAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+  return (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-700/60 text-xs font-bold text-white ring-1 ring-white/20">
+      {initials || "?"}
+    </span>
+  );
+}
+
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
@@ -65,65 +80,80 @@ export function AppHeader() {
     router.replace("/");
   }
 
+  const fio = me ? formatMeFio(me) : null;
   const departmentLabel = me ? pickDepartmentLabel(me) : null;
 
   return (
-    <header className="border-b border-emerald-900/15 bg-emerald-950 text-emerald-50">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3 sm:items-center">
-          <Link
-            href="/testlar"
-            aria-label="Testlar sahifasiga o'tish"
-            className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-          >
-            <BrandLogo size="sm" className="mt-0.5 sm:mt-0" />
-          </Link>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-300/90">
-              Agrosanoatni rivojlantirish agentligi
-            </p>
-            <h1 className="text-lg font-semibold leading-tight text-white">
-              KPI testlash tizimi
-            </h1>
-            {me ? (
-              <div className="mt-1 space-y-0.5 text-sm">
-                <p className="font-medium text-emerald-100">
-                  {formatMeFio(me)}
-                </p>
-                {departmentLabel ? (
-                  <p className="text-xs text-emerald-200/90">
-                    {departmentLabel}
+    <header className="border-b border-white/5 bg-emerald-950">
+      <div className="mx-auto max-w-5xl px-4">
+        <div className="flex h-14 items-center justify-between gap-4">
+          {/* Brand */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/testlar"
+              aria-label="Testlar sahifasiga o'tish"
+              className="shrink-0 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            >
+              <BrandLogo size="sm" />
+            </Link>
+            <div className="min-w-0">
+              <p className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400/80 sm:block">
+                Agrosanoatni rivojlantirish agentligi
+              </p>
+              <p className="text-sm font-semibold leading-tight text-white">
+                KPI testlash tizimi
+              </p>
+            </div>
+          </div>
+
+          {/* Nav + user */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <nav className="flex items-center gap-0.5">
+              {nav.map(({ href, label }) => {
+                const active = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+                      active
+                        ? "bg-white/10 text-white"
+                        : "text-emerald-200/80 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mx-1 h-5 w-px bg-white/10" aria-hidden />
+
+            {fio ? (
+              <div className="flex items-center gap-2">
+                <UserAvatar name={fio} />
+                <div className="hidden min-w-0 lg:block">
+                  <p className="max-w-[160px] truncate text-xs font-medium text-white">
+                    {fio}
                   </p>
-                ) : null}
+                  {departmentLabel ? (
+                    <p className="max-w-[160px] truncate text-[10px] text-emerald-300/70">
+                      {departmentLabel}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             ) : null}
+
+            <button
+              type="button"
+              onClick={chiqish}
+              className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-emerald-200/70 transition-colors duration-150 hover:bg-white/5 hover:text-white"
+            >
+              Chiqish
+            </button>
           </div>
         </div>
-        <nav className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {nav.map(({ href, label }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-emerald-700 text-white"
-                    : "text-emerald-100 hover:bg-emerald-900/60"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={chiqish}
-            className="rounded-lg border border-emerald-600/50 px-3 py-2 text-sm font-medium text-emerald-100 hover:bg-emerald-900/50"
-          >
-            Chiqish
-          </button>
-        </nav>
       </div>
     </header>
   );

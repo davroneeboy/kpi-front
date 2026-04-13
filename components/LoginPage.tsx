@@ -256,15 +256,6 @@ export function LoginPage() {
                 )}
               </button>
             </form>
-
-            {process.env.NODE_ENV === "development" ? (
-              <p className="mt-6 border-t border-zinc-100 pt-4 text-center text-[11px] leading-relaxed text-zinc-400">
-                Dev:{" "}
-                <code className="rounded bg-zinc-100 px-1 py-0.5 text-zinc-600">
-                  POST /api/auth/login/
-                </code>
-              </p>
-            ) : null}
           </div>
         </div>
       </div>

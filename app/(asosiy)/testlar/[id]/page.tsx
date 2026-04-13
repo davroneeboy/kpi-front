@@ -34,7 +34,7 @@ export default function TestOtkazishPage() {
   /** Server vaqtidan hisoblangan tugash vaqti (ms) */
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   /** Har soniyada qayta chizish uchun */
-  const [vaqtTik, setVaqtTik] = useState(0);
+  const [, setVaqtTik] = useState(0);
   const deadlineRef = useRef<number | null>(null);
   deadlineRef.current = deadlineMs;
 
@@ -55,6 +55,8 @@ export default function TestOtkazishPage() {
   const [yuborilmoqda, setYuborilmoqda] = useState<number | null>(null);
   const [yakunlanmoqda, setYakunlanmoqda] = useState(false);
   const [chiqishModal, setChiqishModal] = useState(false);
+  /** true bo'lsa, keyingi sync useEffect birinchi run()ni o'tkazib yuboradi */
+  const skipFirstSyncRef = useRef(false);
 
   useAttemptSessionEvents(attemptId, {
     active:
@@ -154,9 +156,9 @@ export default function TestOtkazishPage() {
           sessionStorage.removeItem(`attempt_bootstrap_${testId}`);
           const att = JSON.parse(raw) as ApiAttemptDetail;
           if (att?.id) {
+            skipFirstSyncRef.current = true;
             setAttemptId(att.id);
             applyAttemptSnapshot(att);
-            /* POST start javobi yetarli; GET qo'shimcha — interval + javobdan keyin */
           }
         }
       } catch (e) {
@@ -186,6 +188,7 @@ export default function TestOtkazishPage() {
     setXato(null);
     try {
       const att = await startAttempt(testId);
+      skipFirstSyncRef.current = true;
       setAttemptId(att.id);
       applyAttemptSnapshot(att);
     } catch (e) {
@@ -206,7 +209,11 @@ export default function TestOtkazishPage() {
     const run = () => {
       if (!cancelled) void syncAttemptMeta(attemptId);
     };
-    run();
+    if (skipFirstSyncRef.current) {
+      skipFirstSyncRef.current = false;
+    } else {
+      run();
+    }
     const t = setInterval(run, 15000);
     return () => {
       cancelled = true;
@@ -336,7 +343,6 @@ export default function TestOtkazishPage() {
     setChiqishModal(true);
   }
 
-  void vaqtTik;
   const qolganSoniya =
     deadlineMs == null
       ? null
