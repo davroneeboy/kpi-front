@@ -55,12 +55,14 @@ export default function TestOtkazishPage() {
   const [yuborilmoqda, setYuborilmoqda] = useState<number | null>(null);
   const [yakunlanmoqda, setYakunlanmoqda] = useState(false);
   const [chiqishModal, setChiqishModal] = useState(false);
+  const [terminated, setTerminated] = useState(false);
   /** true bo'lsa, keyingi sync useEffect birinchi run()ni o'tkazib yuboradi */
   const skipFirstSyncRef = useRef(false);
 
-  useAttemptSessionEvents(attemptId, {
-    active:
-      Boolean(attemptId) && !timedOut && !yakunlanmoqda,
+  const { notification, dismissNotification } = useAttemptSessionEvents(attemptId, {
+    active: Boolean(attemptId) && !timedOut && !yakunlanmoqda && !terminated,
+    onTerminated: () => setTerminated(true),
+    onPageVisible: () => { if (attemptId) void syncAttemptMeta(attemptId); },
   });
 
   const savollar = useMemo(() => {
@@ -109,6 +111,11 @@ export default function TestOtkazishPage() {
       const d = await fetchAttemptDetail(aid);
       applyAttemptSnapshot(d);
       const st = String(d.status ?? "").toLowerCase();
+      console.log("[syncAttemptMeta] status:", d.status);
+      if (st.includes("terminat")) {
+        setTerminated(true);
+        return;
+      }
       if (
         st.includes("complete") ||
         st.includes("abandon") ||
@@ -116,8 +123,8 @@ export default function TestOtkazishPage() {
       ) {
         router.replace("/natijalar");
       }
-    } catch {
-      /* vaqt sinxroni ixtiyoriy */
+    } catch (e) {
+      console.log("[syncAttemptMeta] error:", e);
     }
   }, [applyAttemptSnapshot, router]);
 
@@ -397,9 +404,20 @@ export default function TestOtkazishPage() {
         </div>
       </div>
 
+      {attemptId && !timedOut && !yakunlanmoqda ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Diqqat!</p>
+          <p className="mt-0.5">
+            Boshqa sahifaga o’tish, yorliqni almashtirish yoki boshqa ilovaga
+            o’tish jarima ballari sifatida hisoblanadi. Test davomida ushbu
+            oynadan chiqmang.
+          </p>
+        </div>
+      ) : null}
+
       {timedOut ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-          Vaqt tugadi. Urinish yopilgan bo‘lishi mumkin — natijalar sahifasini
+          Vaqt tugadi. Urinish yopilgan bo’lishi mumkin — natijalar sahifasini
           tekshiring.
         </p>
       ) : null}
@@ -537,6 +555,92 @@ export default function TestOtkazishPage() {
           </div>
         </>
       )}
+
+      {notification ? (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4"
+          onClick={dismissNotification}
+        >
+        <div
+          className="flex w-full max-w-md flex-col items-center gap-3 rounded-2xl border border-orange-200 bg-white px-6 py-6 shadow-2xl text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-100">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="h-8 w-8 text-orange-500"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.598 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a1 1 0 100-2 1 1 0 000 2z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+          <p className="text-lg font-semibold text-zinc-900">
+            {notification.eventType === "page_visible"
+              ? "Boshqa yorliqqa o'tildi"
+              : "Boshqa ilova ochildi"}
+          </p>
+          <p className="text-sm text-zinc-600">{notification.message}</p>
+          <button
+            type="button"
+            onClick={dismissNotification}
+            className="mt-2 w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600"
+          >
+            Tushunarli
+          </button>
+        </div>
+        </div>
+      ) : null}
+
+      {terminated ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="terminated-title"
+        >
+          <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-red-200 bg-white px-6 py-8 shadow-2xl text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-9 w-9 text-red-500"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div>
+              <p id="terminated-title" className="text-xl font-semibold text-zinc-900">
+                Test yakunlandi
+              </p>
+              <p className="mt-2 text-sm text-zinc-600">
+                Siz test davomida boshqa yorliq yoki ilovaga o'tganligi sababli
+                urinish avtomatik ravishda to'xtatildi. Ball hisoblanmaydi.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.replace("/natijalar")}
+              className="mt-1 w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+            >
+              Natijalarni ko'rish
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {chiqishModal ? (
         <div
