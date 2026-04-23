@@ -156,6 +156,7 @@ export type AttemptSessionEventResponse = {
   id: number;
   event_type: AttemptSessionEventType;
   created_at: string;
+  attempt_terminated?: boolean;
 };
 
 export type ApiErrorBody = {
