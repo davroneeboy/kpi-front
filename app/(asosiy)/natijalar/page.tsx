@@ -23,10 +23,10 @@ function statusLabel(s: UiAttemptStatus): string {
 
 function statusClass(s: UiAttemptStatus): string {
   switch (s) {
-    case "jarayonda": return "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200";
-    case "yakunlangan": return "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200";
-    case "bekor": return "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200";
-    default: return "bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200";
+    case "jarayonda": return "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200";
+    case "yakunlangan": return "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200";
+    case "bekor": return "bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200";
+    default: return "bg-zinc-100 text-zinc-500 ring-1 ring-inset ring-zinc-200";
   }
 }
 
@@ -248,9 +248,19 @@ export default function NatijalarPage() {
                       {ui === "jarayonda" || pct == null ? (
                         <span className="text-zinc-400">—</span>
                       ) : (
-                        <span className={`tabular-nums font-semibold ${scoreColorClass(pct)}`}>
-                          {pct}%
-                        </span>
+                        <div className="flex min-w-[4.5rem] flex-col gap-1">
+                          <span className={`tabular-nums text-sm font-semibold ${scoreColorClass(pct)}`}>
+                            {pct}%
+                          </span>
+                          <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100">
+                            <div
+                              className={`h-full rounded-full ${
+                                pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-400" : "bg-red-400"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3.5">
