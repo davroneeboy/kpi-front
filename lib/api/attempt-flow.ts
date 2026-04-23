@@ -60,13 +60,14 @@ export async function abandonAttempt(attemptId: number): Promise<void> {
   if (!res.ok) throw new Error(await readApiError(res));
 }
 
-/** POST /api/attempts/<id>/session-events/ — telemetriya; xatoliklarni yutish */
+/** POST /api/attempts/<id>/events/ — telemetriya; attempt_terminated ni qaytarishi mumkin */
 export async function postAttemptSessionEvent(
   attemptId: number,
   body: AttemptSessionEventPayload,
-): Promise<void> {
+  { keepalive = false }: { keepalive?: boolean } = {},
+): Promise<{ terminated: boolean }> {
   try {
-    const res = await apiFetch(`/api/attempts/${attemptId}/session-events/`, {
+    const res = await apiFetch(`/api/attempts/${attemptId}/events/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -74,9 +75,18 @@ export async function postAttemptSessionEvent(
         client_timestamp:
           body.client_timestamp ?? new Date().toISOString(),
       }),
+      keepalive,
     });
-    if (!res.ok) return;
+    console.log("[postAttemptSessionEvent] status:", res.status, "url:", res.url);
+    if (!res.ok) return { terminated: false };
+    const ct = res.headers.get("content-type");
+    if (ct?.includes("application/json")) {
+      const data = (await res.json()) as { attempt_terminated?: boolean };
+      console.log("[postAttemptSessionEvent] response body:", data);
+      return { terminated: Boolean(data?.attempt_terminated) };
+    }
+    return { terminated: false };
   } catch {
-    /* tarmoq / urinish tugagan */
+    return { terminated: false };
   }
 }
