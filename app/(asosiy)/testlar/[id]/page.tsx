@@ -88,7 +88,6 @@ export default function TestOtkazishPage() {
   const [tanlangan, setTanlangan] = useState<Record<number, number>>({});
   const [draftTanlov, setDraftTanlov] = useState<Record<number, number>>({});
   const [answeredIds, setAnsweredIds] = useState<number[]>([]);
-  const [nextQuestion, setNextQuestion] = useState<ApiTestQuestionDetail | null>(null);
   const [currentQuestionId, setCurrentQuestionId] = useState<number | null>(null);
   const [questionsTotal, setQuestionsTotal] = useState<number | null>(null);
   const [questionsAnswered, setQuestionsAnswered] = useState<number | null>(null);
@@ -132,12 +131,6 @@ export default function TestOtkazishPage() {
         }
       }
       if (Object.keys(map).length) setTanlangan((prev) => ({ ...prev, ...map }));
-    }
-    if (d.next_question) {
-      setNextQuestion(d.next_question);
-      setCurrentQuestionId((prev) => prev ?? d.next_question?.id ?? null);
-    } else {
-      setNextQuestion(null);
     }
   }, []);
 
@@ -250,11 +243,8 @@ export default function TestOtkazishPage() {
       const byId = savollar.find((q) => q.id === currentQuestionId);
       if (byId) return byId;
     }
-    if (nextQuestion) return nextQuestion;
-    if (!savollar.length) return null;
-    const answered = new Set(answeredIds);
-    return savollar.find((q) => !answered.has(q.id)) ?? null;
-  }, [currentQuestionId, nextQuestion, savollar, answeredIds]);
+    return savollar[0] ?? null;
+  }, [currentQuestionId, savollar]);
 
   const joriyTanlov =
     joriySavol == null

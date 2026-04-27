@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
-import { getApiOrigin } from "@/lib/api/config";
 import { loginRequest } from "@/lib/api/public";
 import { isClientAuthed, setSessionFromLogin } from "@/lib/auth-storage";
 
@@ -64,13 +63,6 @@ export function LoginPage() {
 
     if (!login.trim() || !parol.trim()) {
       setXato("Foydalanuvchi nomi va parolni to‘ldiring.");
-      return;
-    }
-
-    if (!getApiOrigin()) {
-      setXato(
-        "Адрес бэкэнда не настроен. Укажите NEXT_PUBLIC_API_URL в файле .env.local в корне проекта (например: http://127.0.0.1:8000).",
-      );
       return;
     }
 

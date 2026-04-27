@@ -1,4 +1,3 @@
-import { apiUrl } from "@/lib/api/config";
 import { localizeApiMessage } from "@/lib/api/localize-api-message";
 import type { ApiErrorBody, TokenRefreshResponse } from "@/lib/api/types";
 import {
@@ -42,7 +41,7 @@ async function postRefresh(): Promise<boolean> {
 
   refreshInFlight = (async () => {
     try {
-      const res = await fetch(apiUrl("/api/auth/refresh/"), {
+      const res = await fetch("/api/proxy/api/auth/refresh/", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ refresh }),
@@ -90,7 +89,7 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  let res = await fetchWithGetDedup(apiUrl(path), { ...rest, headers });
+  let res = await fetchWithGetDedup(`/api/proxy${path.startsWith("/") ? path : `/${path}`}`, { ...rest, headers });
 
   if (res.status === 401 && auth && !_skipRefresh) {
     const ok = await postRefresh();
@@ -98,7 +97,7 @@ export async function apiFetch(
       const retryHeaders = new Headers(headers);
       const newAccess = getAccessToken();
       if (newAccess) retryHeaders.set("Authorization", `Bearer ${newAccess}`);
-      res = await fetchWithGetDedup(apiUrl(path), {
+      res = await fetchWithGetDedup(`/api/proxy${path.startsWith("/") ? path : `/${path}`}`, {
         ...rest,
         headers: retryHeaders,
       });

@@ -1,12 +1,9 @@
-import { apiUrl, getApiOrigin } from "@/lib/api/config";
 import type { LoginResponse } from "@/lib/api/types";
 import { readApiError } from "@/lib/api/client";
 
 export async function fetchHealth(): Promise<boolean> {
-  const origin = getApiOrigin();
-  if (!origin) return false;
   try {
-    const res = await fetch(`${origin}/api/health/`, {
+    const res = await fetch("/api/proxy/api/health/", {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -20,7 +17,7 @@ export async function loginRequest(
   username: string,
   password: string,
 ): Promise<LoginResponse> {
-  const res = await fetch(apiUrl("/api/auth/login/"), {
+  const res = await fetch("/api/proxy/api/auth/login/", {
     method: "POST",
     headers: {
       Accept: "application/json",
