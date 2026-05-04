@@ -7,8 +7,10 @@ export async function fetchHealth(): Promise<boolean> {
       method: "GET",
       headers: { Accept: "application/json" },
     });
+    if (!res.ok) console.warn("[health] upstream returned", res.status);
     return res.ok;
-  } catch {
+  } catch (err) {
+    console.warn("[health] fetch failed:", err);
     return false;
   }
 }

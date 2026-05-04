@@ -7,6 +7,7 @@ import { fetchTestDetail } from "@/lib/api/tests-crud";
 import { fetchTests } from "@/lib/api/tests";
 import type { ApiTest } from "@/lib/api/types";
 import { formatDdMmYyyy } from "@/lib/format-date";
+import { getStoredUser } from "@/lib/auth-storage";
 
 type TooltipMeta = {
   savollar: number | null;
@@ -80,6 +81,7 @@ export default function TestlarPage() {
   const [loadingMetaId, setLoadingMetaId] = useState<number | null>(null);
   const [startingId, setStartingId] = useState<number | null>(null);
   const [modalXato, setModalXato] = useState<string | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<"idle" | "pending">("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +144,21 @@ export default function TestlarPage() {
   async function modalBoshlash() {
     if (activeTooltipId == null) return;
     setModalXato(null);
+
+    // 1. Запросить камеру
+    setCameraStatus("pending");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // Сразу останавливаем треки — настоящий стрим откроет useProctoring на странице теста
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      setCameraStatus("idle");
+      setModalXato("Kameraga ruxsat berilmadi. Brauzerdagi ruxsat sozlamalarini tekshiring.");
+      return;
+    }
+    setCameraStatus("idle");
+
+    // 2. Стартовать попытку и перейти
     setStartingId(activeTooltipId);
     try {
       const attempt = await startAttempt(activeTooltipId);
@@ -310,6 +327,17 @@ export default function TestlarPage() {
                 Test
               </p>
             ) : null}
+            {(() => {
+              const user = getStoredUser();
+              const fullName = user
+                ? (user.full_name?.trim() || [user.first_name, user.last_name].filter(Boolean).join(" "))
+                : null;
+              return fullName ? (
+                <p className="mt-1 text-sm text-zinc-500">
+                  <span className="font-semibold text-zinc-800">{fullName}</span>, siz quyidagi testni boshlashga tayyormisiz?
+                </p>
+              ) : null;
+            })()}
             <h3 className="mt-1 text-lg font-bold tracking-tight text-zinc-900">
               {activeTest?.title ?? "Test"}
             </h3>
@@ -358,10 +386,18 @@ export default function TestlarPage() {
               <button
                 type="button"
                 onClick={() => void modalBoshlash()}
-                disabled={startingId === activeTooltipId}
+                disabled={startingId === activeTooltipId || cameraStatus === "pending"}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/15 transition hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:pointer-events-none disabled:opacity-60"
               >
-                {startingId === activeTooltipId ? (
+                {cameraStatus === "pending" ? (
+                  <>
+                    <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Kamera ruxsati…
+                  </>
+                ) : startingId === activeTooltipId ? (
                   <>
                     <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

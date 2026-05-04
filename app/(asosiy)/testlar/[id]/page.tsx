@@ -11,6 +11,10 @@ import {
 } from "@/lib/api/attempt-flow";
 import { fetchTestDetail } from "@/lib/api/tests-crud";
 import { useAttemptSessionEvents } from "@/lib/hooks/useAttemptSessionEvents";
+import { useProctoring } from "@/lib/hooks/useProctoring";
+import { getStoredUser } from "@/lib/auth-storage";
+import { setActiveAttempt, clearActiveAttempt, getActiveAttempt } from "@/components/ActiveAttemptGuard";
+import "@/lib/api/test-stream"; // Makes testStream available globally
 import type { ApiAttemptDetail, ApiTestDetail, ApiTestQuestionDetail } from "@/lib/api/types";
 
 function isFinishedAttemptError(message: string): boolean {
@@ -82,6 +86,8 @@ export default function TestOtkazishPage() {
   deadlineRef.current = deadlineMs;
 
   const [timedOut, setTimedOut] = useState(false);
+  const timedOutRef = useRef(false);
+  timedOutRef.current = timedOut;
   const [yuklanmoqda, setYuklanmoqda] = useState(true);
   const [xato, setXato] = useState<string | null>(null);
   const [yakunlanganUrinishXatosi, setYakunlanganUrinishXatosi] = useState(false);
@@ -97,6 +103,12 @@ export default function TestOtkazishPage() {
   const [terminated, setTerminated] = useState(false);
   const skipFirstSyncRef = useRef(false);
 
+  const { acquireCamera, start: startProctoring, stop: stopProctoring, stream, cameraStatus } = useProctoring();
+
+  useEffect(() => {
+    if (timedOut || terminated) stopProctoring();
+  }, [timedOut, terminated, stopProctoring]);
+
   const { notification, dismissNotification } = useAttemptSessionEvents(attemptId, {
     active: Boolean(attemptId) && !timedOut && !yakunlanmoqda && !terminated,
     onTerminated: () => setTerminated(true),
@@ -110,8 +122,29 @@ export default function TestOtkazishPage() {
     );
   }, [test]);
 
+  // Восстановить позицию: первый незаявленный вопрос после загрузки попытки
+  const positionRestoredRef = useRef(false);
+  useEffect(() => {
+    if (positionRestoredRef.current) return;
+    if (!attemptId || !savollar.length) return;
+    positionRestoredRef.current = true;
+    if (currentQuestionId != null) return; // уже установлен
+    const answeredSet = new Set(answeredIds);
+    const next = savollar.find((q) => !answeredSet.has(q.id));
+    setCurrentQuestionId(next?.id ?? savollar[savollar.length - 1].id);
+  }, [attemptId, savollar, answeredIds, currentQuestionId]);
+
   const applyAttemptSnapshot = useCallback((d: ApiAttemptDetail) => {
-    if (typeof d.seconds_remaining === "number") {
+    // deadline_at предпочтительнее seconds_remaining — точнее при неактивной вкладке
+    if (d.deadline_at) {
+      const ms = new Date(d.deadline_at).getTime() - Date.now();
+      if (ms <= 0) {
+        setDeadlineMs(null);
+        setTimedOut(true);
+      } else {
+        setDeadlineMs(Date.now() + ms);
+      }
+    } else if (typeof d.seconds_remaining === "number") {
       const sec = d.seconds_remaining;
       if (sec <= 0) {
         setDeadlineMs(null);
@@ -141,10 +174,12 @@ export default function TestOtkazishPage() {
       const st = String(d.status ?? "").toLowerCase();
       console.log("[syncAttemptMeta] status:", d.status);
       if (st.includes("terminat")) {
+        clearActiveAttempt();
         setTerminated(true);
         return;
       }
       if (st.includes("complete") || st.includes("abandon") || st === "done") {
+        clearActiveAttempt();
         router.replace("/natijalar");
       }
     } catch (e) {
@@ -161,6 +196,15 @@ export default function TestOtkazishPage() {
     }, 1000);
     return () => clearInterval(id);
   }, [deadlineMs, timedOut]);
+
+  // Авто-complete когда таймер истёк
+  useEffect(() => {
+    if (!timedOut || !attemptId) return;
+    stopProctoring();
+    void completeAttempt(attemptId)
+      .then(() => { clearActiveAttempt(); router.replace("/natijalar"); })
+      .catch((err) => { console.warn("[timeout] completeAttempt failed:", err); clearActiveAttempt(); router.replace("/natijalar"); });
+  }, [timedOut, attemptId, router, stopProctoring]);
 
   useEffect(() => {
     if (!Number.isFinite(testId) || testId <= 0) {
@@ -185,6 +229,31 @@ export default function TestOtkazishPage() {
             skipFirstSyncRef.current = true;
             setAttemptId(att.id);
             applyAttemptSnapshot(att);
+            setActiveAttempt({ attemptId: att.id, testId });
+            void startProctoring(att.id);
+          }
+        } else {
+          // Возврат на страницу теста после редиректа — bootstrap уже потреблён,
+          // но active_attempt хранит attemptId активной попытки
+          const active = getActiveAttempt();
+          if (active && active.testId === testId) {
+            try {
+              const att = await fetchAttemptDetail(active.attemptId);
+              if (!cancelled) {
+                const st = String(att.status ?? "").toLowerCase();
+                if (st.includes("in_progress") || st.includes("progress")) {
+                  skipFirstSyncRef.current = true;
+                  setAttemptId(att.id);
+                  applyAttemptSnapshot(att);
+                  void startProctoring(att.id);
+                } else {
+                  clearActiveAttempt();
+                }
+              }
+            } catch (err) {
+              console.warn("[bootstrap] fetchAttemptDetail failed:", err);
+              if (!cancelled) clearActiveAttempt();
+            }
           }
         }
       } catch (e) {
@@ -202,13 +271,22 @@ export default function TestOtkazishPage() {
 
   async function boshlash() {
     if (!Number.isFinite(testId) || testId <= 0) return;
-    setYuklanmoqda(true);
     setXato(null);
+
+    const cameraGranted = await acquireCamera();
+    if (!cameraGranted) {
+      setXato("Kameraga ruxsat berilmadi. Brauzerdagi ruxsat sozlamalarini tekshiring.");
+      return;
+    }
+
+    setYuklanmoqda(true);
     try {
       const att = await startAttempt(testId);
       skipFirstSyncRef.current = true;
       setAttemptId(att.id);
       applyAttemptSnapshot(att);
+      setActiveAttempt({ attemptId: att.id, testId });
+      void startProctoring(att.id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Urinishni boshlab bo'lmadi.";
       setXato(msg);
@@ -221,7 +299,7 @@ export default function TestOtkazishPage() {
   useEffect(() => {
     if (!attemptId || timedOut) return;
     let cancelled = false;
-    const run = () => { if (!cancelled) void syncAttemptMeta(attemptId); };
+    const run = () => { if (!cancelled && !timedOutRef.current) void syncAttemptMeta(attemptId); };
     if (skipFirstSyncRef.current) {
       skipFirstSyncRef.current = false;
     } else {
@@ -236,7 +314,7 @@ export default function TestOtkazishPage() {
     setDraftTanlov((prev) => ({ ...prev, [savolId]: variantId }));
   }
 
-  const savolIds = savollar.map((q) => q.id);
+  const savolIds = useMemo(() => savollar.map((q) => q.id), [savollar]);
 
   const joriySavol = useMemo(() => {
     if (currentQuestionId != null) {
@@ -271,15 +349,20 @@ export default function TestOtkazishPage() {
   async function keyingiSavol() {
     if (!attemptId || !joriySavol || timedOut) return;
     if (joriyTanlov == null) { moveToNextQuestion(); return; }
-    if (isLastQuestion) {
-      setDraftTanlov((prev) => ({ ...prev, [joriySavol.id]: joriyTanlov }));
-      return;
-    }
     if (tanlangan[joriySavol.id] === joriyTanlov) { moveToNextQuestion(); return; }
     setYuborilmoqda(joriySavol.id);
     setXato(null);
     try {
-      await submitAnswer(attemptId, joriySavol.id, joriyTanlov);
+      const snap = await submitAnswer(attemptId, joriySavol.id, joriyTanlov);
+      if (snap) {
+        applyAttemptSnapshot(snap);
+        const st = String(snap.status ?? "").toLowerCase();
+        if (st.length > 0 && !st.includes("in_progress") && !st.includes("progress")) {
+          clearActiveAttempt();
+          router.replace("/natijalar");
+          return;
+        }
+      }
       setTanlangan((prev) => ({ ...prev, [joriySavol.id]: joriyTanlov }));
       setDraftTanlov((prev) => { const next = { ...prev }; delete next[joriySavol.id]; return next; });
       await syncAttemptMeta(attemptId);
@@ -307,6 +390,8 @@ export default function TestOtkazishPage() {
         .filter((v): v is { questionId: number; optionId: number } => v != null);
       for (const p of pending) await submitAnswer(attemptId, p.questionId, p.optionId);
       await completeAttempt(attemptId);
+      stopProctoring();
+      clearActiveAttempt();
       setChiqishModal(false);
       router.replace("/natijalar");
     } catch (e) {
@@ -474,16 +559,43 @@ export default function TestOtkazishPage() {
               <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-zinc-900">Testni boshlashga tayyormisiz?</h3>
+          {(() => {
+            const user = getStoredUser();
+            const fullName = user
+              ? (user.full_name?.trim() || [user.first_name, user.last_name].filter(Boolean).join(" "))
+              : null;
+            return fullName ? (
+              <p className="mb-1 text-sm font-medium text-zinc-500">
+                {fullName},{" "}
+                <span className="text-zinc-700">siz</span>
+              </p>
+            ) : null;
+          })()}
+          <h3 className="text-lg font-semibold text-zinc-900">
+            &ldquo;{test.title}&rdquo; testini boshlashga tayyormisiz?
+          </h3>
           <p className="mt-1.5 text-sm text-zinc-500">
             &quot;Boshlash&quot; tugmasini bossangiz, vaqt hisobi boshlanadi.
           </p>
           <button
             type="button"
             onClick={() => void boshlash()}
-            className="mt-6 rounded-xl bg-emerald-700 px-8 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/15 transition hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            disabled={yuklanmoqda || cameraStatus === "pending"}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-8 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/15 transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
-            Boshlash
+            {cameraStatus === "pending" ? (
+              <>
+                <Spinner className="h-4 w-4" />
+                Kamera ruxsati kutilmoqda…
+              </>
+            ) : yuklanmoqda ? (
+              <>
+                <Spinner className="h-4 w-4" />
+                Boshlanmoqda…
+              </>
+            ) : (
+              "Boshlash"
+            )}
           </button>
         </div>
       ) : savollar.length === 0 ? (
@@ -745,6 +857,40 @@ export default function TestOtkazishPage() {
           </div>
         </div>
       ) : null}
+
+      <CameraPreview stream={stream} />
+    </div>
+  );
+}
+
+function CameraPreview({ stream }: { stream: MediaStream | null }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (stream) {
+      el.srcObject = stream;
+      el.play().catch(() => {});
+    } else {
+      el.srcObject = null;
+    }
+  }, [stream]);
+
+  if (!stream) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 overflow-hidden rounded-xl shadow-lg ring-1 ring-zinc-900/10">
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        className="h-28 w-40 object-cover bg-zinc-900"
+        aria-label="Kamera ko'rinishi"
+      />
+      <span className="absolute bottom-1 left-1 rounded bg-zinc-900/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+        Kamera
+      </span>
     </div>
   );
 }

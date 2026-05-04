@@ -129,6 +129,7 @@ export type ApiAttemptResponseItem = {
 export type ApiAttemptDetail = ApiAttempt & {
   server_time?: string;
   seconds_remaining?: number | null;
+  deadline_at?: string | null;
   questions?: ApiTestQuestionDetail[];
   questions_total?: number;
   questions_answered?: number;

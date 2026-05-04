@@ -10,6 +10,8 @@ import {
 let refreshInFlight: Promise<boolean> | null = null;
 let getInFlight = new Map<string, Promise<Response>>();
 
+const proxyUrl = (path: string) => `/api/proxy${path.startsWith("/") ? path : `/${path}`}`;
+
 function buildGetRequestKey(url: string, headers: Headers): string {
   return `GET ${url} :: auth=${headers.get("Authorization") ?? ""} :: accept=${headers.get("Accept") ?? ""}`;
 }
@@ -89,7 +91,7 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  let res = await fetchWithGetDedup(`/api/proxy${path.startsWith("/") ? path : `/${path}`}`, { ...rest, headers });
+  let res = await fetchWithGetDedup(proxyUrl(path), { ...rest, headers });
 
   if (res.status === 401 && auth && !_skipRefresh) {
     const ok = await postRefresh();
@@ -97,7 +99,7 @@ export async function apiFetch(
       const retryHeaders = new Headers(headers);
       const newAccess = getAccessToken();
       if (newAccess) retryHeaders.set("Authorization", `Bearer ${newAccess}`);
-      res = await fetchWithGetDedup(`/api/proxy${path.startsWith("/") ? path : `/${path}`}`, {
+      res = await fetchWithGetDedup(proxyUrl(path), {
         ...rest,
         headers: retryHeaders,
       });

@@ -16,6 +16,8 @@ const HOP_BY_HOP = new Set([
   "proxy-authenticate",
 ]);
 
+const EXCLUDE_HEADERS = new Set([...HOP_BY_HOP, "host", "cookie"]);
+
 async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -28,14 +30,13 @@ async function handler(
     );
   }
 
-  await params; // consume — path taken from the raw URL
   const rawPath = req.nextUrl.pathname.replace(/^\/api\/proxy/, "");
   const djangoPath = rawPath.endsWith("/") ? rawPath : `${rawPath}/`;
   const upstreamUrl = `${origin}${djangoPath}${req.nextUrl.search}`;
 
   const forwardHeaders = new Headers();
   for (const [key, value] of req.headers) {
-    if (key.toLowerCase() !== "host" && !HOP_BY_HOP.has(key.toLowerCase())) {
+    if (!EXCLUDE_HEADERS.has(key.toLowerCase())) {
       forwardHeaders.set(key, value);
     }
   }
@@ -56,7 +57,7 @@ async function handler(
     }
   }
 
-  return new NextResponse(upstream.body, {
+  return new NextResponse(upstream.body ?? null, {
     status: upstream.status,
     headers: resHeaders,
   });
