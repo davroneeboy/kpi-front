@@ -22,7 +22,16 @@ export function getActiveAttempt(): ActiveAttempt | null {
   try {
     const raw = sessionStorage.getItem(KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as ActiveAttempt;
+    const data = JSON.parse(raw) as unknown;
+    if (
+      data !== null &&
+      typeof data === "object" &&
+      typeof (data as Record<string, unknown>).attemptId === "number" &&
+      typeof (data as Record<string, unknown>).testId === "number"
+    ) {
+      return data as ActiveAttempt;
+    }
+    return null;
   } catch {
     return null;
   }

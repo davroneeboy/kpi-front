@@ -38,6 +38,12 @@ export function getStoredUser(): ApiUser | null {
   }
 }
 
+export function getStoredUserFullName(): string | null {
+  const user = getStoredUser();
+  if (!user) return null;
+  return user.full_name?.trim() || [user.first_name, user.last_name].filter(Boolean).join(" ") || null;
+}
+
 export function setSessionFromLogin(
   access: string,
   refresh: string,

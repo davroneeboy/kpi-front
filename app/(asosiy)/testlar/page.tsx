@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { startAttempt } from "@/lib/api/attempt-flow";
 import { fetchTestDetail } from "@/lib/api/tests-crud";
 import { fetchTests } from "@/lib/api/tests";
 import type { ApiTest } from "@/lib/api/types";
 import { formatDdMmYyyy } from "@/lib/format-date";
-import { getStoredUser } from "@/lib/auth-storage";
+import { getStoredUserFullName } from "@/lib/auth-storage";
 
 type TooltipMeta = {
   savollar: number | null;
@@ -178,6 +178,7 @@ export default function TestlarPage() {
   }
 
   const activeTest = tests?.find((t) => t.id === activeTooltipId) ?? null;
+  const userFullName = useMemo(() => getStoredUserFullName(), []);
 
   return (
     <div className="space-y-6">
@@ -327,17 +328,11 @@ export default function TestlarPage() {
                 Test
               </p>
             ) : null}
-            {(() => {
-              const user = getStoredUser();
-              const fullName = user
-                ? (user.full_name?.trim() || [user.first_name, user.last_name].filter(Boolean).join(" "))
-                : null;
-              return fullName ? (
-                <p className="mt-1 text-sm text-zinc-500">
-                  <span className="font-semibold text-zinc-800">{fullName}</span>, siz quyidagi testni boshlashga tayyormisiz?
-                </p>
-              ) : null;
-            })()}
+            {userFullName ? (
+              <p className="mt-1 text-sm text-zinc-500">
+                <span className="font-semibold text-zinc-800">{userFullName}</span>, siz quyidagi testni boshlashga tayyormisiz?
+              </p>
+            ) : null}
             <h3 className="mt-1 text-lg font-bold tracking-tight text-zinc-900">
               {activeTest?.title ?? "Test"}
             </h3>

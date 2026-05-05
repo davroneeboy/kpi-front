@@ -45,7 +45,7 @@ export function useProctoring() {
     video.srcObject = mediaStream;
     video.muted = true;
     videoRef.current = video;
-    await video.play().catch(() => {});
+    await video.play().catch((err) => { console.warn("[proctoring] video.play failed:", err); });
 
     const canvas = document.createElement("canvas");
     canvas.width = 320;
@@ -72,7 +72,7 @@ export function useProctoring() {
       if (intervalRef.current !== null) { clearInterval(intervalRef.current); intervalRef.current = null; }
     };
 
-    ws.onerror = () => ws.close();
+    ws.onerror = (err) => { console.warn("[proctoring] ws error:", err); ws.close(); };
   }, [acquireCamera]);
 
   const stop = useCallback(() => {

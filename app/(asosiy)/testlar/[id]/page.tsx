@@ -12,9 +12,8 @@ import {
 import { fetchTestDetail } from "@/lib/api/tests-crud";
 import { useAttemptSessionEvents } from "@/lib/hooks/useAttemptSessionEvents";
 import { useProctoring } from "@/lib/hooks/useProctoring";
-import { getStoredUser } from "@/lib/auth-storage";
+import { getStoredUserFullName } from "@/lib/auth-storage";
 import { setActiveAttempt, clearActiveAttempt, getActiveAttempt } from "@/components/ActiveAttemptGuard";
-import "@/lib/api/test-stream"; // Makes testStream available globally
 import type { ApiAttemptDetail, ApiTestDetail, ApiTestQuestionDetail } from "@/lib/api/types";
 
 function isFinishedAttemptError(message: string): boolean {
@@ -136,13 +135,13 @@ export default function TestOtkazishPage() {
 
   const applyAttemptSnapshot = useCallback((d: ApiAttemptDetail) => {
     // deadline_at предпочтительнее seconds_remaining — точнее при неактивной вкладке
-    if (d.deadline_at) {
-      const ms = new Date(d.deadline_at).getTime() - Date.now();
-      if (ms <= 0) {
+    const deadlineMs_ = d.deadline_at ? new Date(d.deadline_at).getTime() - Date.now() : null;
+    if (deadlineMs_ !== null && Number.isFinite(deadlineMs_)) {
+      if (deadlineMs_ <= 0) {
         setDeadlineMs(null);
         setTimedOut(true);
       } else {
-        setDeadlineMs(Date.now() + ms);
+        setDeadlineMs(Date.now() + deadlineMs_);
       }
     } else if (typeof d.seconds_remaining === "number") {
       const sec = d.seconds_remaining;
@@ -441,6 +440,8 @@ export default function TestOtkazishPage() {
     );
   }
 
+  const userFullName = useMemo(() => getStoredUserFullName(), []);
+
   return (
     <div className="space-y-5">
       {/* ─── Header ─── */}
@@ -559,18 +560,12 @@ export default function TestOtkazishPage() {
               <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
             </svg>
           </div>
-          {(() => {
-            const user = getStoredUser();
-            const fullName = user
-              ? (user.full_name?.trim() || [user.first_name, user.last_name].filter(Boolean).join(" "))
-              : null;
-            return fullName ? (
-              <p className="mb-1 text-sm font-medium text-zinc-500">
-                {fullName},{" "}
-                <span className="text-zinc-700">siz</span>
-              </p>
-            ) : null;
-          })()}
+          {userFullName ? (
+            <p className="mb-1 text-sm font-medium text-zinc-500">
+              {userFullName},{" "}
+              <span className="text-zinc-700">siz</span>
+            </p>
+          ) : null}
           <h3 className="text-lg font-semibold text-zinc-900">
             &ldquo;{test.title}&rdquo; testini boshlashga tayyormisiz?
           </h3>
